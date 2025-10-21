@@ -400,6 +400,26 @@ document.querySelectorAll('.type-btn').forEach(btn => {
         }
     });
 
+    // Listener for dynamically created "Pay Now" buttons
+    document.getElementById('accounts-list').addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('pay-now-btn')) {
+            const cardId = e.target.dataset.cardId;
+            const amount = e.target.dataset.amount;
+            openPayCreditCardModal(cardId, parseFloat(amount));
+        }
+    });
+
+    // Listener for the new payment form
+    document.getElementById('payment-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        handleCreditCardPayment();
+    });
+
+    // Add listeners to close the new payment modal
+    document.querySelectorAll('#payment-modal .close, #payment-modal .cancel-btn').forEach(btn => {
+        btn.addEventListener('click', closeModals);
+    });
+
     // Export and Clear data buttons
     document.getElementById('export-data-btn').addEventListener('click', exportData);
     document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
@@ -417,18 +437,31 @@ async function saveTransaction() {
         recurring: document.getElementById('tx-recurring').value
     };
 
-    if (currentTransactionType === 'transfer') {
-        transaction.toAccountId = document.getElementById('tx-to-account').value;
-    } else {
+    // --- START: New Balance Update Logic ---
+    const fromAccount = getAccount(transaction.accountId);
+
+    if (transaction.type === 'expense') {
+        if(fromAccount) fromAccount.balance -= transaction.amount;
+        transaction.categoryId = document.getElementById('tx-category').value;
+    } 
+    else if (transaction.type === 'income') {
+        if(fromAccount) fromAccount.balance += transaction.amount;
         transaction.categoryId = document.getElementById('tx-category').value;
     }
+    else if (transaction.type === 'transfer') {
+        transaction.toAccountId = document.getElementById('tx-to-account').value;
+        const toAccount = getAccount(transaction.toAccountId);
+        if(fromAccount) fromAccount.balance -= transaction.amount;
+        if(toAccount) toAccount.balance += transaction.amount;
+    }
+    // --- END: New Balance Update Logic ---
 
     appData.transactions.push(transaction);
     await saveData();
     closeModals();
-    renderTransactions();
+    renderTransactions(); // This will now show the correct data
+    renderAccounts(); // Also re-render accounts to be safe
 }
-
 async function saveAccount() {
     const account = {
         id: generateId(),
@@ -446,6 +479,68 @@ async function saveAccount() {
     await saveData();
     closeModals();
     renderAccounts();
+}
+
+// --- Add these new functions after saveAccount() ---
+
+function openPayCreditCardModal(cardId, amount) {
+    const card = getAccount(cardId);
+    if (!card) return;
+
+    document.getElementById('payment-modal').classList.add('show');
+    document.getElementById('payment-card-id').value = cardId;
+    document.getElementById('payment-amount-value').value = amount;
+    document.getElementById('payment-amount').textContent = formatCurrency(amount);
+    
+    // Populate dropdown with accounts that can be used for payment
+    const paymentAccountSelect = document.getElementById('payment-account');
+    paymentAccountSelect.innerHTML = '<option value="">Select payment account</option>';
+    appData.accounts.filter(acc => acc.type !== 'Credit Card').forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.id;
+        option.textContent = `${acc.name} (${formatCurrency(acc.balance)})`;
+        paymentAccountSelect.appendChild(option);
+    });
+}
+
+async function handleCreditCardPayment() {
+    const fromAccountId = document.getElementById('payment-account').value;
+    const toAccountId = document.getElementById('payment-card-id').value;
+    const amount = parseFloat(document.getElementById('payment-amount-value').value);
+
+    if (!fromAccountId || !toAccountId || !amount) {
+        alert('Please select a payment account.');
+        return;
+    }
+
+    const fromAccount = getAccount(fromAccountId);
+    const toAccount = getAccount(toAccountId);
+
+    if (fromAccount.balance < amount) {
+        alert('Insufficient funds in the selected account.');
+        return;
+    }
+    
+    // 1. Create the transfer transaction
+    const transaction = {
+        id: generateId(),
+        date: formatDate(new Date()),
+        type: 'transfer',
+        amount: amount,
+        accountId: fromAccountId,
+        toAccountId: toAccountId,
+        description: `Payment for ${toAccount.name}`
+    };
+    appData.transactions.push(transaction);
+
+    // 2. Manually update account balances
+    fromAccount.balance -= amount;
+    toAccount.balance += amount; // Increases balance (making it less negative)
+
+    // 3. Save, close, and re-render
+    await saveData();
+    closeModals();
+    renderAccounts(); // Re-render to show updated balances
 }
 
 async function addCategory(type, name) {
@@ -606,27 +701,70 @@ function renderTransactions() {
 }
 
 function createTransactionItem(tx) {
-    const category = getCategory(tx.categoryId, tx.type);
-    const account = getAccount(tx.accountId);
     const item = document.createElement('div');
     item.className = 'transaction-item';
+
+    let desc, meta, categoryIcon = '';
+
+    if (tx.type === 'transfer') {
+        const fromAccount = getAccount(tx.accountId);
+        const toAccount = getAccount(tx.toAccountId);
+        desc = `Transfer to ${toAccount?.name || 'Unknown'}`;
+        meta = `From: ${fromAccount?.name || 'Unknown'}`;
+        categoryIcon = '🔁';
+    } else {
+        const category = getCategory(tx.categoryId, tx.type);
+        const account = getAccount(tx.accountId);
+        desc = tx.description || 'No description';
+        meta = `${category?.name || 'Uncategorized'} • ${account?.name || 'Unknown Account'}`;
+        categoryIcon = category?.icon || '';
+    }
+
     item.innerHTML = `
         <div class="transaction-info">
-            <div class="transaction-desc">${category?.icon || ''} ${tx.description || 'No description'}</div>
-            <div class="transaction-meta">${category?.name || 'Uncategorized'} • ${account?.name || 'Unknown Account'}</div>
+            <div class="transaction-desc">${categoryIcon} ${desc}</div>
+            <div class="transaction-meta">${meta}</div>
         </div>
-        <div class="transaction-amount ${tx.type}">${formatCurrency(tx.amount)}</div>
+        <div class="transaction-amount ${tx.type}">${tx.type === 'expense' ? '-' : ''}${formatCurrency(tx.amount)}</div>
     `;
     return item;
 }
 
 function renderAccounts() {
-    // Overall financial summary (this part remains the same)
-    let assets = 0, liabilities = 0;
+    let assets = 0;
+    let liabilities = 0;
+
+    // --- New, more accurate financial summary calculation ---
     appData.accounts.forEach(acc => {
-        if (acc.includeInTotal) {
+        if (!acc.includeInTotal) return;
+
+        if (acc.type !== 'Credit Card') {
             if (acc.balance >= 0) assets += acc.balance;
             else liabilities += Math.abs(acc.balance);
+        } else {
+            // For credit cards, only the "Balance Payable" contributes to liabilities
+            const today = new Date();
+            const billingDay = acc.billingDay || 15;
+            let lastBillingDate = new Date(today.getFullYear(), today.getMonth(), billingDay);
+            if (today.getDate() < billingDay) {
+                lastBillingDate.setMonth(lastBillingDate.getMonth() - 1);
+            }
+            
+            // Calculate outstanding charges (new expenses since last bill)
+            let outstandingBalance = 0;
+            appData.transactions.forEach(tx => {
+                if (tx.accountId === acc.id && new Date(tx.date) > lastBillingDate) {
+                    outstandingBalance -= tx.amount;
+                }
+            });
+
+            // Balance Payable is the total balance MINUS the new charges.
+            const balancePayable = acc.balance - outstandingBalance;
+            
+            if (acc.balance > 0) assets += acc.balance;
+            if (balancePayable < 0) {
+                 liabilities += Math.abs(balancePayable);
+            }
         }
     });
 
@@ -634,49 +772,73 @@ function renderAccounts() {
     document.getElementById('total-liabilities').textContent = formatCurrency(liabilities);
     document.getElementById('net-worth').textContent = formatCurrency(assets - liabilities);
 
-    // --- START: New Grouping and Rendering Logic ---
+    // --- New Grouping and Rendering Logic ---
     const listEl = document.getElementById('accounts-list');
     listEl.innerHTML = '';
 
-    // Step 1: Group accounts by their type
     const groupedAccounts = appData.accounts.reduce((groups, account) => {
         const type = account.type || 'Uncategorized';
-        if (!groups[type]) {
-            groups[type] = [];
-        }
-        groups[type].push(account);
+        (groups[type] = groups[type] || []).push(account);
         return groups;
     }, {});
 
-    // Step 2: Render each group
     Object.keys(groupedAccounts).forEach(type => {
         const accountsInGroup = groupedAccounts[type];
-        
-        // Calculate the subtotal for the group
         const groupTotal = accountsInGroup.reduce((sum, acc) => sum + acc.balance, 0);
 
-        // Create and append the group header
         const groupHeader = document.createElement('div');
         groupHeader.className = 'account-group-header';
-        groupHeader.innerHTML = `
-            <span class="group-name">${type}</span>
-            <span class="group-total">${formatCurrency(groupTotal)}</span>
-        `;
+        groupHeader.innerHTML = `<span class="group-name">${type}</span><span class="group-total">${formatCurrency(groupTotal)}</span>`;
         listEl.appendChild(groupHeader);
-        
-        // Render each account within the group
+
         accountsInGroup.forEach(acc => {
             const item = document.createElement('div');
             item.className = 'account-item';
             const balanceClass = acc.balance >= 0 ? 'positive' : 'negative';
-            item.innerHTML = `
-                <div class="account-info"><h3>${acc.name}</h3></div>
-                <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
-            `;
+
+            if (acc.type === 'Credit Card') {
+                item.classList.add('credit-card');
+                
+                const today = new Date();
+                const billingDay = acc.billingDay || 15;
+                let lastBillingDate = new Date(today.getFullYear(), today.getMonth(), billingDay);
+                if (today.getDate() < billingDay) {
+                    lastBillingDate.setMonth(lastBillingDate.getMonth() - 1);
+                }
+
+                let outstandingBalance = 0;
+                appData.transactions.forEach(tx => {
+                    // Only count expenses on this card that are after the last billing date
+                    if (tx.accountId === acc.id && tx.type === 'expense' && new Date(tx.date) > lastBillingDate) {
+                        outstandingBalance -= tx.amount;
+                    }
+                });
+
+                const balancePayable = acc.balance - outstandingBalance;
+
+                item.innerHTML = `
+                    <div class="account-info"><h3>${acc.name}</h3></div>
+                    <div class="credit-card-details">
+                        <div class="balance-line">
+                            <span class="label">Balance Payable</span>
+                            <span class="amount ${balancePayable <= 0 ? 'negative' : 'positive'}">${formatCurrency(balancePayable)}</span>
+                        </div>
+                        <div class="balance-line">
+                            <span class="label">Outstanding Balance</span>
+                            <span class="amount ${outstandingBalance <= 0 ? 'negative' : 'positive'}">${formatCurrency(outstandingBalance)}</span>
+                        </div>
+                    </div>
+                    ${balancePayable < 0 ? `<button class="pay-now-btn" data-card-id="${acc.id}" data-amount="${Math.abs(balancePayable)}">Pay Now</button>` : ''}
+                `;
+            } else {
+                item.innerHTML = `
+                    <div class="account-info"><h3>${acc.name}</h3></div>
+                    <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
+                `;
+            }
             listEl.appendChild(item);
         });
     });
-    // --- END: New Grouping and Rendering Logic ---
 }
 
 function renderAnalytics() {
@@ -795,7 +957,7 @@ function openAccountModal() {
 }
 
 function closeModals() {
-    document.querySelectorAll('#transaction-modal, #account-modal').forEach(modal => modal.classList.remove('show'));
+    document.querySelectorAll('#transaction-modal, #account-modal, #payment-modal').forEach(modal => modal.classList.remove('show'));
     document.querySelectorAll('form').forEach(form => form.reset());
 }
 
