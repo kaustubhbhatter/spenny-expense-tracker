@@ -281,6 +281,12 @@ function setupEventListeners() {
         });
     });
 
+    document.getElementById('tx-account').addEventListener('change', () => {
+    if (currentTransactionType === 'transfer') {
+        updateToAccountDropdown();
+    }
+});
+
     // Month navigation
     document.getElementById('prev-month').addEventListener('click', () => {
         currentMonth.setMonth(currentMonth.getMonth() - 1);
@@ -298,14 +304,33 @@ function setupEventListeners() {
     });
 
     // Transaction form type buttons
-    document.querySelectorAll('.type-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            currentTransactionType = this.dataset.type;
+    // Transaction form type buttons
+document.querySelectorAll('.type-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentTransactionType = this.dataset.type;
+
+        const categoryGroup = document.getElementById('category-form-group');
+        const toAccountGroup = document.getElementById('to-account-form-group');
+        const categorySelect = document.getElementById('tx-category');
+        const toAccountSelect = document.getElementById('tx-to-account');
+
+        if (currentTransactionType === 'transfer') {
+            categoryGroup.style.display = 'none';
+            toAccountGroup.style.display = 'block';
+            categorySelect.required = false;
+            toAccountSelect.required = true;
+            updateToAccountDropdown(); // We'll create this helper function next
+        } else {
+            categoryGroup.style.display = 'block';
+            toAccountGroup.style.display = 'none';
+            categorySelect.required = true;
+            toAccountSelect.required = false;
             updateCategoryDropdown();
-        });
+        }
     });
+});
 
     // Recurring icon
     document.getElementById('recurring-icon').addEventListener('click', () => {
@@ -387,11 +412,17 @@ async function saveTransaction() {
         date: document.getElementById('tx-date').value,
         type: currentTransactionType,
         amount: parseFloat(document.getElementById('tx-amount').value),
-        accountId: document.getElementById('tx-account').value,
-        categoryId: document.getElementById('tx-category').value,
+        accountId: document.getElementById('tx-account').value, // From Account
         description: document.getElementById('tx-description').value,
         recurring: document.getElementById('tx-recurring').value
     };
+
+    if (currentTransactionType === 'transfer') {
+        transaction.toAccountId = document.getElementById('tx-to-account').value;
+    } else {
+        transaction.categoryId = document.getElementById('tx-category').value;
+    }
+
     appData.transactions.push(transaction);
     await saveData();
     closeModals();
@@ -492,6 +523,18 @@ function renderTransactions() {
     monthTransactions.forEach(tx => {
         if (tx.type === 'income') totalIncome += tx.amount;
         if (tx.type === 'expense') totalExpense += tx.amount;
+         if (tx.type === 'transfer') {
+        const toAccount = getAccount(tx.toAccountId);
+        const fromAccount = getAccount(tx.accountId);
+        // Count as expense if money moves from an included account to an excluded one
+        if (fromAccount && fromAccount.includeInTotal && toAccount && !toAccount.includeInTotal) {
+            totalExpense += tx.amount;
+        }
+        // Count as income if money moves from an excluded account to an included one
+        if (toAccount && toAccount.includeInTotal && fromAccount && !fromAccount.includeInTotal) {
+            totalIncome += tx.amount;
+        }
+    }
     });
 
     document.getElementById('monthly-income').textContent = formatCurrency(totalIncome);
@@ -507,20 +550,58 @@ function renderTransactions() {
         return;
     }
 
+    // New code
     Object.keys(grouped).sort((a, b) => new Date(b) - new Date(a)).forEach(date => {
         const dayGroup = document.createElement('div');
         dayGroup.className = 'day-group';
+
+        // Set the date header
         const dateObj = new Date(date);
         const dayName = getDayName(dateObj);
         const header = document.createElement('div');
         header.className = 'day-header';
         header.textContent = dayName;
         dayGroup.appendChild(header);
-        listEl.appendChild(dayGroup);
+
+        // --- START: Added Logic ---
+        // Calculate totals for the day
+        let dailyIncome = 0;
+        let dailyExpense = 0;
+        grouped[date].forEach(tx => {
+            if (tx.type === 'income') dailyIncome += tx.amount;
+            if (tx.type === 'expense') dailyExpense += tx.amount;
+             if (tx.type === 'transfer') {
+        const toAccount = getAccount(tx.toAccountId);
+        const fromAccount = getAccount(tx.accountId);
+        // Count as expense if money moves from an included account to an excluded one
+        if (fromAccount && fromAccount.includeInTotal && toAccount && !toAccount.includeInTotal) {
+            dailyExpense += tx.amount;
+        }
+         // Count as income if money moves from an excluded account to an included one
+        if (toAccount && toAccount.includeInTotal && fromAccount && !fromAccount.includeInTotal) {
+            dailyIncome += tx.amount;
+        }
+    }
+        });
+
+        // Create and append the summary element
+        const summaryEl = document.createElement('div');
+        summaryEl.className = 'day-summary';
+        summaryEl.innerHTML = `
+            <span class="income">In: ${formatCurrency(dailyIncome)}</span>
+            <span class="expense">Out: ${formatCurrency(dailyExpense)}</span>
+            <span class="net">Net: ${formatCurrency(dailyIncome - dailyExpense)}</span>
+        `;
+        dayGroup.appendChild(summaryEl);
+        // --- END: Added Logic ---
+
+        // Append the individual transaction items
         grouped[date].forEach(tx => {
             const item = createTransactionItem(tx);
             dayGroup.appendChild(item);
         });
+
+        listEl.appendChild(dayGroup);
     });
 }
 
@@ -540,6 +621,7 @@ function createTransactionItem(tx) {
 }
 
 function renderAccounts() {
+    // Overall financial summary (this part remains the same)
     let assets = 0, liabilities = 0;
     appData.accounts.forEach(acc => {
         if (acc.includeInTotal) {
@@ -552,18 +634,49 @@ function renderAccounts() {
     document.getElementById('total-liabilities').textContent = formatCurrency(liabilities);
     document.getElementById('net-worth').textContent = formatCurrency(assets - liabilities);
 
+    // --- START: New Grouping and Rendering Logic ---
     const listEl = document.getElementById('accounts-list');
     listEl.innerHTML = '';
-    appData.accounts.forEach(acc => {
-        const item = document.createElement('div');
-        item.className = 'account-item';
-        const balanceClass = acc.balance >= 0 ? 'positive' : 'negative';
-        item.innerHTML = `
-            <div class="account-info"><h3>${acc.name}</h3><p>${acc.type}</p></div>
-            <div class="account-balance ${balanceClass}">${formatCurrency(Math.abs(acc.balance))}</div>
+
+    // Step 1: Group accounts by their type
+    const groupedAccounts = appData.accounts.reduce((groups, account) => {
+        const type = account.type || 'Uncategorized';
+        if (!groups[type]) {
+            groups[type] = [];
+        }
+        groups[type].push(account);
+        return groups;
+    }, {});
+
+    // Step 2: Render each group
+    Object.keys(groupedAccounts).forEach(type => {
+        const accountsInGroup = groupedAccounts[type];
+        
+        // Calculate the subtotal for the group
+        const groupTotal = accountsInGroup.reduce((sum, acc) => sum + acc.balance, 0);
+
+        // Create and append the group header
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'account-group-header';
+        groupHeader.innerHTML = `
+            <span class="group-name">${type}</span>
+            <span class="group-total">${formatCurrency(groupTotal)}</span>
         `;
-        listEl.appendChild(item);
+        listEl.appendChild(groupHeader);
+        
+        // Render each account within the group
+        accountsInGroup.forEach(acc => {
+            const item = document.createElement('div');
+            item.className = 'account-item';
+            const balanceClass = acc.balance >= 0 ? 'positive' : 'negative';
+            item.innerHTML = `
+                <div class="account-info"><h3>${acc.name}</h3></div>
+                <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
+            `;
+            listEl.appendChild(item);
+        });
     });
+    // --- END: New Grouping and Rendering Logic ---
 }
 
 function renderAnalytics() {
@@ -697,6 +810,8 @@ function updateAccountDropdown() {
     });
 }
 
+
+
 function updateCategoryDropdown() {
     const categories = currentTransactionType === 'income' ? appData.incomeCategories : appData.expenseCategories;
     const select = document.getElementById('tx-category');
@@ -705,6 +820,19 @@ function updateCategoryDropdown() {
         const option = document.createElement('option');
         option.value = cat.id;
         option.textContent = `${cat.icon} ${cat.name}`;
+        select.appendChild(option);
+    });
+}
+
+function updateToAccountDropdown() {
+    const fromAccount = document.getElementById('tx-account').value;
+    const select = document.getElementById('tx-to-account');
+    select.innerHTML = '<option value="">Select account</option>';
+    // Filter out the 'from' account so you can't transfer to itself
+    (appData.accounts || []).filter(acc => acc.id !== fromAccount).forEach(acc => {
+        const option = document.createElement('option');
+        option.value = acc.id;
+        option.textContent = acc.name;
         select.appendChild(option);
     });
 }
