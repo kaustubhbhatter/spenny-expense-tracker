@@ -926,54 +926,77 @@ body {
 }
 
 .summary-card {
-    background: var(--color-primary);
-    padding: var(--space-20);
+    background: var(--color-surface);
+    padding: var(--space-16);
     border-radius: var(--radius-md);
-    color: var(--color-btn-primary-text);
+    color: var(--color-text); /* Change text color back to default */
     display: flex;
     flex-direction: column;
-    gap: var(--space-10);
+    gap: var(--space-6);
     border: 1px solid var(--color-card-border);
+    border-left-width: 5px; /* Add thick left border */
+    position: relative;
 }
 
 .summary-card.income {
-    background: var(--color-success);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-success);
 }
 
 .summary-card.expense {
-    background: var(--color-error);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-error);
 }
 
 .summary-card.net {
-    background: var(--color-primary);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-primary);
 }
 
+.summary-card.income,
 .summary-card.assets {
-    background: var(--color-success);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-success);
 }
 
+.summary-card.expense,
 .summary-card.liabilities {
-    background: var(--color-error);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-error);
 }
 
+.summary-card.net,
 .summary-card.networth {
-    background: var(--color-primary);
-    color: var(--color-btn-primary-text);
+    border-left-color: var(--color-primary);
+}
+
+/* Add these new rules to color the amount text correctly for the accounts page */
+.summary-card.assets .amount {
+    color: var(--color-success);
+}
+.summary-card.liabilities .amount {
+    color: var(--color-error);
+}
+.summary-card.networth .amount {
+    color: var(--color-primary);
 }
 
 .summary-card .label {
-    font-size: var(--font-size-base);
-    opacity: 0.9;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary); /* Use secondary text color */
+    font-weight: var(--font-weight-medium);
 }
 
 .summary-card .amount {
-    font-size: var(--font-size-3xl);
-    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xl); /* Reduced font size */
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text); /* Default color */
+}
+
+/* Add specific colors for the amounts */
+.summary-card.income .amount {
+    color: var(--color-success);
+}
+.summary-card.expense .amount {
+    color: var(--color-error);
+}
+.summary-card.net .amount {
+    color: var(--color-primary);
 }
 
 /* Transactions List */
@@ -1000,8 +1023,9 @@ body {
 .day-summary {
     display: flex;
     gap: var(--space-16);
-    margin-bottom: var(--space-10);
+    margin-bottom: 0; /* Change from var(--space-10) to 0 */
     font-size: var(--font-size-base);
+    padding: var(--space-10) 0; /* Add some vertical padding */
 }
 
 .day-summary span {
@@ -1030,6 +1054,7 @@ body {
     align-items: center;
     padding: var(--space-10);
     border-bottom: 1px solid var(--color-card-border-inner);
+    border-top: 1px solid var(--color-card-border-inner);
 }
 
 .transaction-item:last-child {
@@ -1076,6 +1101,27 @@ body {
     margin: var(--space-20) 0;
 }
 
+.account-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-8) var(--space-12);
+    margin-top: var(--space-20);
+    background: var(--color-secondary);
+    border-radius: var(--radius-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+}
+
+.account-group-header .group-name {
+    font-size: var(--font-size-lg);
+}
+
+.account-group-header .group-total {
+    font-size: var(--font-size-lg);
+}
+/* END: Add new styles */
+
 .account-item {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
@@ -1087,13 +1133,8 @@ body {
 }
 
 .account-info h3 {
-    margin-bottom: var(--space-6);
+    margin-bottom: 0;
     color: var(--color-text);
-}
-
-.account-info p {
-    font-size: var(--font-size-base);
-    color: var(--color-text-secondary);
 }
 
 .account-balance {
@@ -1107,6 +1148,12 @@ body {
 
 .account-balance.negative {
     color: var(--color-error);
+}
+
+.month-navigation h2 {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
 }
 
 /* Charts */
