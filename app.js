@@ -1,11 +1,12 @@
 // Firebase Configuration - Replace with your own Firebase project config
 const firebaseConfig = {
-  apiKey: "AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-  authDomain: "expense-tracker-xxxxx.firebaseapp.com",
-  projectId: "expense-tracker-xxxxx",
-  storageBucket: "expense-tracker-xxxxx.appspot.com",
-  messagingSenderId: "123456789012",
-  appId: "1:123456789012:web:xxxxxxxxxxxxxx"
+  apiKey: "AIzaSyAmgOL0tYT-18VcfVmZ2CK5_79XfRLLAzs",
+  authDomain: "my-expense-tracker-9d0f9.firebaseapp.com",
+  projectId: "my-expense-tracker-9d0f9",
+  storageBucket: "my-expense-tracker-9d0f9.firebasestorage.app",
+  messagingSenderId: "384865958037",
+  appId: "1:384865958037:web:0cfa22e56aaef3dfe9439c",
+  measurementId: "G-E526DX0EVW"
 };
 
 // Firebase instances
