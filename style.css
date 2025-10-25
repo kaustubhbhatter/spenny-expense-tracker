@@ -867,6 +867,7 @@ body {
     background: var(--color-background);
     min-height: 100vh;
     color: var(--color-text);
+    background-image: linear-gradient(120deg, var(--color-bg-1) 0%, var(--color-bg-8) 100%);
 }
 
 #app {
@@ -898,11 +899,14 @@ body {
 /* Screens */
 .screen {
     display: none;
-    background: var(--color-surface);
+    background: rgba(var(--color-surface-rgb), 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px); /* For Safari */
+    border: 1px solid rgba(var(--color-brown-600-rgb), 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0,0,0,0.1);
+
     padding: var(--space-20);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-card-border);
 }
 
 .screen.active {
@@ -921,15 +925,66 @@ body {
     background: var(--color-primary);
     color: var(--color-btn-primary-text);
     border: none;
-    padding: var(--space-10) var(--space-20);
+    padding: var(--space-6) var(--space-10); /* Reduced padding */
     border-radius: var(--radius-base);
     cursor: pointer;
-    font-size: var(--font-size-xl);
+    font-size: var(--font-size-lg); /* Reduced from xl to lg */
+    line-height: 1; /* Improves vertical alignment */
     transition: background var(--duration-fast) var(--ease-standard);
 }
 
 .nav-btn:hover {
     background: var(--color-primary-hover);
+}
+
+/* Add these new styles anywhere in the file */
+
+.transactions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap; /* Allows wrapping on small screens */
+    gap: var(--space-20);
+    margin-bottom: var(--space-20);
+}
+
+/* Modify the .month-navigation */
+.month-navigation {
+    display: flex;
+    /* REMOVE justify-content and margin-bottom */
+    align-items: center;
+    gap: var(--space-12); /* Add gap for spacing */
+}
+
+/* Modify the .monthly-summary */
+.monthly-summary {
+    display: flex; /* Change from grid to flex */
+    flex-direction: row;
+    gap: var(--space-12);
+    margin-bottom: 0; /* Remove margin as parent handles it */
+    flex-grow: 1; /* Allows it to take up available space */
+}
+
+/* Make summary cards smaller */
+.monthly-summary .summary-card {
+    padding: var(--space-8) var(--space-12);
+    min-width: 120px; /* Give them a minimum width */
+}
+
+.monthly-summary .summary-card .label {
+    font-size: var(--font-size-xs);
+}
+
+.monthly-summary .summary-card .amount {
+    font-size: var(--font-size-lg);
+}
+
+.form-row {
+    display: flex;
+    gap: var(--space-16);
+}
+.form-row .form-group {
+    flex: 1; /* Makes child form groups share the space */
 }
 
 /* Summary Cards */
@@ -941,15 +996,16 @@ body {
 }
 
 .summary-card {
-    background: var(--color-surface);
+    background: rgba(var(--color-surface-rgb), 0.5); 
+    
     padding: var(--space-16);
     border-radius: var(--radius-md);
-    color: var(--color-text); /* Change text color back to default */
+    color: var(--color-text);
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
     border: 1px solid var(--color-card-border);
-    border-left-width: 5px; /* Add thick left border */
+    border-left-width: 5px;
     position: relative;
 }
 
@@ -1025,7 +1081,7 @@ body {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
     padding: var(--space-16);
-    background: var(--color-surface);
+    background: rgba(var(--color-surface-rgb), 0.4);
 }
 
 /* --- MODIFIED: Day Header Styling --- */
@@ -1128,10 +1184,52 @@ body {
 }
 /* END: Add new styles */
 
+/* Find the .account-item selector and add position: relative */
+.account-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-12);
+    border-radius: var(--radius-base);
+    position: relative; /* This is crucial for positioning the actions */
+    transition: background-color var(--duration-fast) var(--ease-standard); /* Add transition for smoothness */
+}
+
+/* Style the actions container to be hidden and positioned on the right */
+.account-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+    position: absolute; /* Position it within the .account-item */
+    right: var(--space-12);
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0; /* Hide by default */
+    visibility: hidden;
+    transition: opacity 150ms ease-in-out;
+}
+
+/* On hover, show the actions... */
+.account-item:hover .account-actions {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ...and hide the balance/details to make space */
+.account-item .account-balance, 
+.account-item .credit-card-columns {
+    transition: opacity 150ms ease-in-out; /* Add transition for fade effect */
+}
+
+.account-item:hover .account-balance,
+.account-item:hover .credit-card-columns {
+    opacity: 0;
+}
+
 .account-group-card {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    background: var(--color-surface);
+    background: rgba(var(--color-surface-rgb), 0.4);
     margin-bottom: var(--space-16);
 }
 
@@ -1173,7 +1271,7 @@ body {
 }
 
 .month-navigation h2 {
-    font-size: var(--font-size-2xl);
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
 }
@@ -1417,7 +1515,7 @@ body {
 /* Show edit button on hover for accounts and categories */
 .account-item:hover .edit-btn,
 .category-tag:hover .edit-btn {
-    display: inline-flex;
+    display: flex;
 }
 
 /* 3. Checkbox Label Fix */
@@ -1551,12 +1649,16 @@ body {
     padding: var(--space-32);
     border-radius: var(--radius-md);
     width: 90%;
-    max-width: 500px;
+    max-width: 500px; /* This is the original max-width */
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
     border: 1px solid var(--color-card-border);
     box-shadow: var(--shadow-lg);
+}
+
+#transaction-modal .modal-content {
+    max-width: 450px;
 }
 
 .close {
