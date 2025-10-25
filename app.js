@@ -955,9 +955,7 @@ function renderAccounts() {
             const balancePayable = acc.balance - outstandingBalance;
             
             if (acc.balance > 0) assets += acc.balance;
-            if (balancePayable < 0) {
-                 liabilities += Math.abs(balancePayable);
-            }
+            liabilities += Math.abs(acc.balance);
         }
     });
 
