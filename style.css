@@ -1210,36 +1210,6 @@ body {
     transition: background-color var(--duration-fast) var(--ease-standard); /* Add transition for smoothness */
 }
 
-/* Style the actions container to be hidden and positioned on the right */
-.account-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-8);
-    position: absolute; /* Position it within the .account-item */
-    right: var(--space-12);
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0; /* Hide by default */
-    visibility: hidden;
-    transition: opacity 150ms ease-in-out;
-}
-
-/* On hover, show the actions... */
-.account-item:hover .account-actions {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* ...and hide the balance/details to make space */
-.account-item .account-balance, 
-.account-item .credit-card-columns {
-    transition: opacity 150ms ease-in-out; /* Add transition for fade effect */
-}
-
-.account-item:hover .account-balance,
-.account-item:hover .credit-card-columns {
-    opacity: 0;
-}
 
 .account-group-card {
     border: 1px solid var(--color-border);
@@ -1263,6 +1233,55 @@ body {
 
 .account-item:hover {
     background-color: var(--color-secondary);
+}
+
+/* --- PASTE THIS NEW, UNIFIED CSS BLOCK --- */
+
+/* 1. Fix the main layout and hover background */
+.account-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-12);
+    border-radius: var(--radius-base);
+    position: relative;
+    transition: background-color var(--duration-fast) var(--ease-standard);
+}
+
+.account-item:hover {
+    background-color: var(--color-secondary);
+}
+
+/* This is the KEY FIX for the background and padding feel */
+.account-info {
+    flex: 1; /* Allows the left side to grow and fill empty space */
+}
+
+/* 2. Standardize the action buttons to match transactions */
+.account-actions {
+    display: none; /* Hide by default */
+    align-items: center; /* Vertically center the buttons */
+    gap: var(--space-8);
+    flex-shrink: 0;
+}
+
+.account-item:hover .account-actions {
+    display: flex; /* Show on parent hover, like in transactions */
+    flex-shrink: 0;
+}
+
+/* 3. Correctly hide the balance to show the actions */
+.account-item:hover .account-balance,
+.account-item:hover .account-balance-wrapper {
+    display: none; /* Use display:none to prevent layout shifts */
+}
+
+/* Minor style for the balance wrapper */
+.account-balance-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-4);
 }
 
 .account-info h3 {
@@ -1293,51 +1312,22 @@ body {
 
 /* START: New Styles for Accounts Screen & Payment Modal */
 
-/* Specific layout for Credit Card items */
-.credit-card-columns {
-    display: flex;
-    gap: var(--space-16);
-    text-align: right;
-}
-
-.balance-column {
-    display: flex;
-    flex-direction: column;
-}
-
 .balance-column .label {
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
     text-transform: uppercase;
 }
 
-.balance-column .amount {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-medium);
+.account-balance-wrapper .balance-column .label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
 }
 
 .balance-column .amount.negative {
     color: var(--color-error);
 }
 
-/* Pay Now button hover effect */
-.account-item .pay-now-btn {
-    opacity: 0;
-    visibility: hidden;
-    transition: all var(--duration-fast) var(--ease-standard);
-    position: absolute;
-    right: 48px; /* Position next to the edit button */
-    top: 50%;
-    transform: translateY(-50%) scale(0.8);
-    padding: var(--space-4) var(--space-10);
-    font-size: var(--font-size-sm);
-}
 
-.account-item:hover .pay-now-btn {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(-50%) scale(1);
-}
 
 .balance-line .label {
     color: var(--color-text-secondary);
@@ -1348,17 +1338,18 @@ body {
 }
 
 /* Pay Now Button */
+
 .pay-now-btn {
     background: var(--color-primary);
     color: var(--color-btn-primary-text);
     border: none;
-    padding: var(--space-8) var(--space-16);
+    padding: var(--space-4) var(--space-10); /* Using smaller padding to fit nicely */
     border-radius: var(--radius-base);
     cursor: pointer;
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     transition: background-color var(--duration-fast) var(--ease-standard);
-    align-self: flex-end; /* Pushes button to the right */
+    white-space: nowrap; /* Prevents "Pay Due" from wrapping */
 }
 
 .pay-now-btn:hover {
@@ -1513,13 +1504,17 @@ body {
     display: none;
 }
 
-
 /* Make parent elements relative to position the edit button */
 .account-item, .category-tag {
     position: relative;
 }
 
-.account-item .edit-btn, .category-tag .edit-btn {
+.account-balance-wrapper .account-balance {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-medium);
+}
+
+.category-tag .edit-btn {
     position: absolute;
     top: 10px;
     right: 10px;
