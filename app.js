@@ -76,36 +76,18 @@ function handleAuthStateChange() {
             console.log('User is signed in:', user.uid);
             currentUser = user;
             updateUIForUser(user);
-            await handleDataOnLogin();
+            // Directly load data from Firestore for the signed-in user
+            await loadDataFromFirestore();
         } else {
             console.log('User is signed out.');
             currentUser = null;
             updateUIForGuest();
+            // Load guest data from Local Storage
             loadDataFromLocalStorage();
         }
-        render(); // Re-render the entire app after auth state is resolved and data is loaded
+        // Re-render the entire app after auth state is resolved and data is loaded
+        render(); 
     });
-}
-
-// Check for local data and load from Firestore upon login
-async function handleDataOnLogin() {
-    const localDataExists = localStorage.getItem('transactions') !== null;
-
-    if (localDataExists) {
-        if (confirm("You have locally saved guest data. Do you want to upload it to your account? \n\nNote: This will overwrite any existing cloud data.")) {
-            console.log("Uploading local data to Firestore...");
-            loadDataFromLocalStorage(false); // Load into memory without re-rendering
-            await saveData(); // Save the local data to Firestore
-            localStorage.clear(); // Clean up local data after successful upload
-            console.log("Local data cleared after upload.");
-            // After uploading, the app has the correct data. We can stop here.
-            return; 
-        }
-    }
-
-    // This will now ONLY run if there was no local data, 
-    // or if the user explicitly chose NOT to upload it.
-    await loadDataFromFirestore();
 }
 
 function updateUIForUser(user) {
