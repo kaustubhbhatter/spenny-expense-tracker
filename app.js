@@ -283,15 +283,16 @@ function setupEventListeners() {
 });
 
 // Listener for editing and deleting transactions
-document.getElementById('transactions-list').addEventListener('click', (e) => {
+document.getElementById('accounts-list').addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');
     if (editBtn) {
-        openTransactionModal(editBtn.dataset.id);
-        return; // Prevent triggering other listeners
+        openAccountModal(editBtn.dataset.id);
+        return; // Stop processing to avoid accidental clicks
     }
+
     const deleteBtn = e.target.closest('.delete-btn');
     if (deleteBtn) {
-        deleteTransaction(deleteBtn.dataset.id);
+        deleteAccount(deleteBtn.dataset.id);
     }
 });
 
@@ -907,37 +908,40 @@ function createTransactionItem(tx) {
     return item;
 }
 
+/* --- ADD this new function after the saveAccount function --- */
+
+async function deleteAccount(accountId) {
+    // Safety Check: Prevent deletion if account is used in any transaction
+    const isAccountUsed = appData.transactions.some(
+        tx => tx.accountId === accountId || tx.toAccountId === accountId
+    );
+
+    // Confirmation prompt
+    if (confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
+        const accountIndex = appData.accounts.findIndex(acc => acc.id === accountId);
+        if (accountIndex > -1) {
+            appData.accounts.splice(accountIndex, 1);
+            await saveData();
+            renderAccounts(); // Re-render the UI to reflect the change
+        }
+    }
+}
+
+/* --- REPLACE the entire old renderAccounts function with this new one --- */
+
 function renderAccounts() {
     let assets = 0;
     let liabilities = 0;
 
-    // --- New, more accurate financial summary calculation ---
+    // --- Part 1: CORRECT Financial Summary Calculation ---
+    // This logic correctly calculates your overall financial picture.
     appData.accounts.forEach(acc => {
         if (!acc.includeInTotal) return;
 
-        if (acc.type !== 'Credit Card') {
-            if (acc.balance >= 0) assets += acc.balance;
-            else liabilities += Math.abs(acc.balance);
+        if (acc.balance >= 0) {
+            assets += acc.balance; // Positive balances are assets
         } else {
-            // For credit cards, only the "Balance Payable" contributes to liabilities
-            const today = new Date();
-            const billingDay = acc.billingDay || 15;
-            let lastBillingDate = new Date(today.getFullYear(), today.getMonth(), billingDay);
-            if (today.getDate() < billingDay) {
-                lastBillingDate.setMonth(lastBillingDate.getMonth() - 1);
-            }
-            
-            let outstandingBalance = 0;
-            appData.transactions.forEach(tx => {
-                if (tx.accountId === acc.id && tx.type === 'expense' && new Date(tx.date) > lastBillingDate) {
-                    outstandingBalance -= tx.amount;
-                }
-            });
-
-            const balancePayable = acc.balance - outstandingBalance;
-            
-            if (acc.balance > 0) assets += acc.balance;
-            liabilities += Math.abs(acc.balance);
+            liabilities += Math.abs(acc.balance); // Negative balances are liabilities
         }
     });
 
@@ -945,93 +949,92 @@ function renderAccounts() {
     document.getElementById('total-liabilities').textContent = formatCurrency(liabilities);
     document.getElementById('net-worth').textContent = formatCurrency(assets - liabilities);
 
-    // --- New Grouping and Rendering Logic ---
-    // --- New Grouping and Rendering Logic ---
-const listEl = document.getElementById('accounts-list');
-listEl.innerHTML = '';
 
-const groupedAccounts = appData.accounts.reduce((groups, account) => {
-    const type = account.type || 'Uncategorized';
-    (groups[type] = groups[type] || []).push(account);
-    return groups;
-}, {});
+    // --- Part 2: CORRECTED UI Rendering Logic ---
+    // This part builds the visual list of accounts.
+    const listEl = document.getElementById('accounts-list');
+    listEl.innerHTML = '';
 
-Object.keys(groupedAccounts).forEach(type => {
-    const accountsInGroup = groupedAccounts[type];
-    const groupTotal = accountsInGroup.reduce((sum, acc) => sum + acc.balance, 0);
+    const groupedAccounts = appData.accounts.reduce((groups, account) => {
+        const type = account.type || 'Uncategorized';
+        (groups[type] = groups[type] || []).push(account);
+        return groups;
+    }, {});
 
-    // 1. Create the main card for the group
-    const groupCard = document.createElement('div');
-    groupCard.className = 'account-group-card';
-    
-    // 2. Create and append the header
-    const groupHeader = document.createElement('div');
-    groupHeader.className = 'account-group-header';
-    groupHeader.innerHTML = `<span class="group-name">${type}</span><span class="group-total">${formatCurrency(groupTotal)}</span>`;
-    groupCard.appendChild(groupHeader);
-    
-    // 3. Create a container for the account items
-    const itemsContainer = document.createElement('div');
-    itemsContainer.className = 'account-items-container';
-    
-    // 4. Loop through accounts and create individual items
-    accountsInGroup.forEach(acc => {
-        const item = document.createElement('div');
-        item.className = 'account-item';
-        const balanceClass = acc.balance >= 0 ? 'positive' : 'negative';
+    Object.keys(groupedAccounts).forEach(type => {
+        const accountsInGroup = groupedAccounts[type];
+        const groupTotal = accountsInGroup.reduce((sum, acc) => sum + acc.balance, 0);
 
-        if (acc.type === 'Credit Card') {
-            item.classList.add('credit-card');
-            
-            const today = new Date();
-            const billingDay = acc.billingDay || 15;
-            let lastBillingDate = new Date(today.getFullYear(), today.getMonth(), billingDay);
-            if (today.getDate() < billingDay) {
-                lastBillingDate.setMonth(lastBillingDate.getMonth() - 1);
-            }
+        const groupCard = document.createElement('div');
+        groupCard.className = 'account-group-card';
+        
+        const groupHeader = document.createElement('div');
+        groupHeader.className = 'account-group-header';
+        groupHeader.innerHTML = `<span class="group-name">${type}</span><span class="group-total">${formatCurrency(groupTotal)}</span>`;
+        groupCard.appendChild(groupHeader);
+        
+        const itemsContainer = document.createElement('div');
+        itemsContainer.className = 'account-items-container';
+        
+        accountsInGroup.forEach(acc => {
+            const item = document.createElement('div');
+            item.className = 'account-item';
+            const balanceClass = acc.balance >= 0 ? 'positive' : 'negative';
 
-            let outstandingBalance = 0;
-            appData.transactions.forEach(tx => {
-                if (tx.accountId === acc.id && tx.type === 'expense' && new Date(tx.date) > lastBillingDate) {
-                    outstandingBalance -= tx.amount;
+            if (acc.type === 'Credit Card') {
+                // --- NEW SIMPLIFIED CREDIT CARD LOGIC ---
+
+                // 1. Calculate the amount due from the last statement ("Payable")
+                const today = new Date();
+                const billingDay = acc.billingDay || 15;
+                let lastBillingDate = new Date(today.getFullYear(), today.getMonth(), billingDay);
+                if (today.getDate() < billingDay) {
+                    lastBillingDate.setMonth(lastBillingDate.getMonth() - 1);
                 }
-            });
-            const balancePayable = acc.balance - outstandingBalance;
 
-           // This part is inside the if (acc.type === 'Credit Card') block
-            item.innerHTML = `
-                <div class="account-info"><h3>${acc.name}</h3></div>
-                <div class="credit-card-columns">
-                    <div class="balance-column">
-                        <span class="label">Payable</span>
-                        <span class="amount ${balancePayable < 0 ? 'negative' : 'positive'}">${formatCurrency(balancePayable)}</span>
+                let newSpending = 0;
+                appData.transactions.forEach(tx => {
+                    if (tx.accountId === acc.id && tx.type === 'expense' && new Date(tx.date) > lastBillingDate) {
+                        newSpending += tx.amount;
+                    }
+                });
+                
+                // Statement Due is the total balance minus new spending.
+                // Example: Total Balance = -25000, New Spending = 5000. Due = -20000.
+                const statementDue = acc.balance + newSpending;
+
+                // 2. Build the HTML. The main number is now the total balance.
+                item.innerHTML = `
+                    <div class="account-info"><h3>${acc.name}</h3></div>
+                    <div class="account-balance-wrapper">
+                        <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
+                        <div class="balance-column">
+                           <span class="label">Due: ${formatCurrency(statementDue)}</span>
+                        </div>
                     </div>
-                    <div class="balance-column">
-                        <span class="label">Outstanding</span>
-                        <span class="amount ${outstandingBalance < 0 ? 'negative' : 'positive'}">${formatCurrency(outstandingBalance)}</span>
+                    <div class="account-actions">
+                        ${statementDue < 0 ? `<button class="pay-now-btn" data-card-id="${acc.id}" data-amount="${Math.abs(statementDue)}">Pay Due</button>` : ''}
+                        <button class="edit-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                        <button class="delete-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
                     </div>
-                </div>
-                <div class="account-actions">
-                    ${balancePayable < 0 ? `<button class="pay-now-btn" data-card-id="${acc.id}" data-amount="${Math.abs(balancePayable)}">Pay</button>` : ''}
-                    <button class="edit-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                </div>
-            `;
-        } else {
-            item.innerHTML = `
-                <div class="account-info"><h3>${acc.name}</h3></div>
-                <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
-                <!-- This wrapper is the important change for consistency -->
-                <div class="account-actions">
-                    <button class="edit-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                </div>
-            `;
-        }
-        itemsContainer.appendChild(item);
+                `;
+            } else {
+                // Logic for non-credit card accounts remains the same
+                item.innerHTML = `
+                    <div class="account-info"><h3>${acc.name}</h3></div>
+                    <div class="account-balance ${balanceClass}">${formatCurrency(acc.balance)}</div>
+                    <div class="account-actions">
+                        <button class="edit-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
+                        <button class="delete-btn" data-id="${acc.id}"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
+                    </div>
+                `;
+            }
+            itemsContainer.appendChild(item);
+        });
+        
+        groupCard.appendChild(itemsContainer);
+        listEl.appendChild(groupCard);
     });
-    
-    groupCard.appendChild(itemsContainer);
-    listEl.appendChild(groupCard);
-});
 }
 
 function renderAnalytics() {
