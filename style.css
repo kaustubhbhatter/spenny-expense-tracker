@@ -862,12 +862,27 @@ select.form-control {
     box-sizing: border-box;
 }
 
+/* This is the NEW code block */
 body {
     font-family: var(--font-family-base);
-    background: var(--color-background);
     min-height: 100vh;
     color: var(--color-text);
-    background-image: linear-gradient(120deg, var(--color-bg-1) 0%, var(--color-bg-8) 100%);
+    
+    /* 1. Fallback color in case the image fails to load */
+    background-color: var(--color-background);
+    
+    /* 2. Layer the color tint OVER your new background image */
+    background-image: 
+        linear-gradient(120deg, var(--color-bg-1) 0%, var(--color-bg-8) 100%),
+        url('assets/bg.png');
+
+    /* 3. Ensure the background image covers the whole page */
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    
+    /* 4. This makes the background fixed while content scrolls */
+    background-attachment: fixed;
 }
 
 #app {
@@ -1430,17 +1445,17 @@ body {
 
 /* 1. New Brownish-Red Theme for Header */
 .app-header {
-    background: #8B4513; /* A nice SaddleBrown color */
-    border-color: #6A360F;
+    background: #add8e6; /* A nice SaddleBrown color */
+    opacity: 0.7;
 }
 
 .app-header h1, .app-header #user-email {
-    color: var(--color-cream-50);
+    color: #000000;
 }
 
 .app-header .btn-secondary {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--color-cream-50);
+    background: #ffffff;
+    color: #0000aa;
     border-color: rgba(255, 255, 255, 0.2);
 }
 
