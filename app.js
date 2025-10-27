@@ -282,7 +282,7 @@ function setupEventListeners() {
     }
 });
 
-// Listener for editing and deleting transactions
+// Listener for editing and deleting accounts
 document.getElementById('accounts-list').addEventListener('click', (e) => {
     const editBtn = e.target.closest('.edit-btn');
     if (editBtn) {
@@ -296,11 +296,19 @@ document.getElementById('accounts-list').addEventListener('click', (e) => {
     }
 });
 
-// Listener for editing accounts
-document.getElementById('accounts-list').addEventListener('click', (e) => {
+// Listener for editing and deleting transactions from the transactions list
+document.getElementById('transactions-list').addEventListener('click', (e) => {
+    // Check if an edit button was clicked
     const editBtn = e.target.closest('.edit-btn');
     if (editBtn) {
-        openAccountModal(editBtn.dataset.id);
+        openTransactionModal(editBtn.dataset.id);
+        return; // Stop further processing
+    }
+
+    // Check if a delete button was clicked
+    const deleteBtn = e.target.closest('.delete-btn');
+    if (deleteBtn) {
+        deleteTransaction(deleteBtn.dataset.id);
     }
 });
 
