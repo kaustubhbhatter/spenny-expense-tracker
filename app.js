@@ -1152,13 +1152,16 @@ function renderAccountTypesList() {
     });
 }
 
+// --- FIX: Replace the entire openTransactionModal function with this corrected version ---
+
 function openTransactionModal(transactionId = null) {
-    document.getElementById('transaction-form').reset();
-    document.getElementById('tx-id').value = '';
+    // DO NOT reset the form here. We'll do it conditionally below.
     const modal = document.getElementById('transaction-modal');
     const modalTitle = modal.querySelector('h2');
     
     if (transactionId) {
+        // --- EDIT MODE ---
+        // We don't reset the form, just populate it with existing data.
         modalTitle.textContent = 'Edit Transaction';
         const tx = appData.transactions.find(t => t.id === transactionId);
         if (!tx) return;
@@ -1175,25 +1178,36 @@ function openTransactionModal(transactionId = null) {
             btn.classList.toggle('active', btn.dataset.type === tx.type);
         });
         currentTransactionType = tx.type;
-
+        
+        // Populate dropdowns BEFORE setting their values
+        updateAccountDropdown(); 
         if (tx.type === 'transfer') {
             document.getElementById('category-form-group').style.display = 'none';
             document.getElementById('to-account-form-group').style.display = 'block';
-            updateToAccountDropdown();
-            document.getElementById('tx-to-account').value = tx.toAccountId;
+            updateToAccountDropdown(); // Populate the 'to' account dropdown
+            document.getElementById('tx-to-account').value = tx.toAccountId; // NOW set the value
         } else {
             document.getElementById('category-form-group').style.display = 'block';
             document.getElementById('to-account-form-group').style.display = 'none';
-            updateCategoryDropdown();
-            document.getElementById('tx-category').value = tx.categoryId;
+            updateCategoryDropdown(); // Populate the category dropdown
+            document.getElementById('tx-category').value = tx.categoryId; // NOW set the value
         }
     } else {
+        // --- ADD MODE ---
+        // FIX: Reset the form ONLY when adding a new transaction.
+        document.getElementById('transaction-form').reset();
+        document.getElementById('tx-id').value = '';
+        
         modalTitle.textContent = 'Add Transaction';
         document.getElementById('tx-date').valueAsDate = new Date();
-        document.querySelector('.type-btn[data-type="expense"]').click(); // Default to expense
+        
+        // Populate dropdowns for the new form
+        updateAccountDropdown();
+        
+        // Default to 'expense' type and update relevant fields
+        document.querySelector('.type-btn[data-type="expense"]').click(); 
     }
     
-    updateAccountDropdown(); // Always needs to be populated
     modal.classList.add('show');
 }
 
