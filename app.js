@@ -544,7 +544,8 @@ async function saveTransaction() {
     // 4. Replace the old transaction object with the new one
     appData.transactions[txIndex] = newTxData;
 
-}else { // --- CREATE NEW LOGIC ---
+}
+else { // --- CREATE NEW LOGIC ---
         const transaction = {
             id: generateId(),
             date: document.getElementById('tx-date').value,
@@ -1179,22 +1180,26 @@ function openTransactionModal(transactionId = null) {
         });
         currentTransactionType = tx.type;
 
-        // FIX: Populate dropdowns BEFORE setting their values
-        updateAccountDropdown(); // Build the 'From Account' list
-        document.getElementById('tx-account').value = tx.accountId; // NOW set the value
+        // FIX: The core of the solution is this specific order.
+        // 1. Build the "From Account" dropdown list.
+        updateAccountDropdown();
+        // 2. Set the "From Account" dropdown's value.
+        document.getElementById('tx-account').value = tx.accountId;
 
         if (tx.type === 'transfer') {
             document.getElementById('category-form-group').style.display = 'none';
             document.getElementById('to-account-form-group').style.display = 'block';
             
-            updateToAccountDropdown(); // Build the 'To Account' list
-            document.getElementById('tx-to-account').value = tx.toAccountId; // NOW set the value
+            // 3. Now that "From Account" is set, build the "To Account" list, which depends on it.
+            updateToAccountDropdown();
+            // 4. Finally, set the "To Account" dropdown's value.
+            document.getElementById('tx-to-account').value = tx.toAccountId;
         } else {
             document.getElementById('category-form-group').style.display = 'block';
             document.getElementById('to-account-form-group').style.display = 'none';
             
-            updateCategoryDropdown(); // Build the category list
-            document.getElementById('tx-category').value = tx.categoryId; // NOW set the value
+            updateCategoryDropdown();
+            document.getElementById('tx-category').value = tx.categoryId;
         }
     } else {
         // --- ADD MODE ---
