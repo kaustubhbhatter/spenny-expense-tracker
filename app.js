@@ -1154,47 +1154,50 @@ function renderAccountTypesList() {
 
 // --- FIX: Replace the entire openTransactionModal function with this corrected version ---
 
+// --- CORRECTED VERSION 2: Replace the entire function in app.js ---
+
 function openTransactionModal(transactionId = null) {
-    // DO NOT reset the form here. We'll do it conditionally below.
     const modal = document.getElementById('transaction-modal');
     const modalTitle = modal.querySelector('h2');
     
     if (transactionId) {
         // --- EDIT MODE ---
-        // We don't reset the form, just populate it with existing data.
         modalTitle.textContent = 'Edit Transaction';
         const tx = appData.transactions.find(t => t.id === transactionId);
         if (!tx) return;
 
+        // Populate form fields that don't depend on others first
         document.getElementById('tx-id').value = tx.id;
         document.getElementById('tx-date').value = tx.date;
         document.getElementById('tx-amount').value = tx.amount;
-        document.getElementById('tx-account').value = tx.accountId;
         document.getElementById('tx-description').value = tx.description;
         document.getElementById('tx-recurring').value = tx.recurring || 'none';
 
-        // Set the correct type button and show/hide fields
+        // Set the active type button (expense, income, transfer)
         document.querySelectorAll('.type-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.type === tx.type);
         });
         currentTransactionType = tx.type;
-        
-        // Populate dropdowns BEFORE setting their values
-        updateAccountDropdown(); 
+
+        // FIX: Populate dropdowns BEFORE setting their values
+        updateAccountDropdown(); // Build the 'From Account' list
+        document.getElementById('tx-account').value = tx.accountId; // NOW set the value
+
         if (tx.type === 'transfer') {
             document.getElementById('category-form-group').style.display = 'none';
             document.getElementById('to-account-form-group').style.display = 'block';
-            updateToAccountDropdown(); // Populate the 'to' account dropdown
+            
+            updateToAccountDropdown(); // Build the 'To Account' list
             document.getElementById('tx-to-account').value = tx.toAccountId; // NOW set the value
         } else {
             document.getElementById('category-form-group').style.display = 'block';
             document.getElementById('to-account-form-group').style.display = 'none';
-            updateCategoryDropdown(); // Populate the category dropdown
+            
+            updateCategoryDropdown(); // Build the category list
             document.getElementById('tx-category').value = tx.categoryId; // NOW set the value
         }
     } else {
         // --- ADD MODE ---
-        // FIX: Reset the form ONLY when adding a new transaction.
         document.getElementById('transaction-form').reset();
         document.getElementById('tx-id').value = '';
         
