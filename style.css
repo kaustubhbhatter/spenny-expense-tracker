@@ -334,7 +334,7 @@ body {
 .fab {
     position: fixed;
     /* Adjust bottom to clear the new floating menu */
-    bottom: 100px;
+    bottom: 10px;
     right: var(--space-20);
     width: 60px;
     height: 60px;
@@ -1612,28 +1612,6 @@ body {
 
 .btn-danger:hover {
     opacity: 0.9;
-}
-
-/* FAB */
-.fab {
-    position: fixed;
-    bottom: var(--space-32);
-    right: var(--space-32);
-    width: 60px;
-    height: 60px;
-    border-radius: var(--radius-full);
-    background: var(--color-primary);
-    color: var(--color-btn-primary-text);
-    border: none;
-    font-size: var(--space-32);
-    cursor: pointer;
-    box-shadow: var(--shadow-lg);
-    transition: transform var(--duration-fast) var(--ease-standard);
-}
-
-.fab:hover {
-    transform: scale(1.1);
-    background: var(--color-primary-hover);
 }
 
 /* Modal */
