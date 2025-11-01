@@ -16,6 +16,7 @@ let currentUser = null;
 let currentMonth = new Date();
 let currentTransactionType = 'expense';
 let charts = {};
+let isDataLoadedSuccessfully = false;
 
 // Default data structure for new users or guests
 const defaultAppData = {
@@ -171,6 +172,14 @@ async function saveData() {
 // Save data to Firestore for logged-in users
 async function saveDataToFirestore() {
     if (!currentUser) return;
+
+     // --- THE SMARTER BOUNCER ---
+    if (!isDataLoadedSuccessfully) {
+        console.error("CRITICAL: Save aborted. The initial data from the cloud was not loaded successfully. Saving now would overwrite your cloud data.");
+        alert("Save failed: Your data couldn't be loaded from the cloud. Please check your internet connection and refresh the page to prevent data loss.");
+        return; // <-- EJECT!
+    }
+
     try {
         const userDocRef = db.collection('users').doc(currentUser.uid);
         await userDocRef.set(appData);
@@ -184,6 +193,7 @@ async function saveDataToFirestore() {
 // Load data from Firestore for logged-in users
 async function loadDataFromFirestore() {
     if (!currentUser) return;
+    isDataLoadedSuccessfully = false;
     console.log('Loading data from Firestore...');
     try {
         const userDocRef = db.collection('users').doc(currentUser.uid);
@@ -193,13 +203,23 @@ async function loadDataFromFirestore() {
             const data = doc.data();
             appData = { ...JSON.parse(JSON.stringify(defaultAppData)), ...data };
             console.log('Data loaded from Firestore document.');
+            isDataLoadedSuccessfully = true; 
         } else {
             console.log('No Firestore document found. Initializing new user data.');
             // This is a new user, initialize with sample data and save it.
             initializeSampleData();
+            // For a new user, the "load" is conceptually successful because we've
+            // created their initial data. We must set the flag to true NOW,
+            // otherwise the very first save will be blocked.
+            isDataLoadedSuccessfully = true; 
+            console.log("New user initialized. Flag set to true before first save.");
+
             await saveDataToFirestore();
         }
+        isDataLoadedSuccessfully = true; // <-- SET FLAG TO TRUE ON SUCCESS
+        console.log("Data load successful. Flag set to true.");
     } catch (error) {
+        isDataLoadedSuccessfully = false; // Ensure flag is false on failure
         console.error('Error loading from Firestore:', error);
         alert('Could not load data from the cloud. Using local data as a fallback.');
         loadDataFromLocalStorage();
@@ -983,6 +1003,11 @@ async function deleteAccount(accountId) {
     const isAccountUsed = appData.transactions.some(
         tx => tx.accountId === accountId || tx.toAccountId === accountId
     );
+
+    if (isAccountUsed) {
+        alert('This account cannot be deleted because it has transactions associated with it. Please re-assign or delete those transactions first.');
+        return; // Stop the function
+    }
 
     // Confirmation prompt
     if (confirm('Are you sure you want to delete this account? This action cannot be undone.')) {
