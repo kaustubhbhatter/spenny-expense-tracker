@@ -159,10 +159,24 @@
             <button id="add-account-type-btn" class="btn-secondary">+ Add Account Type</button>
         </div>
 
+        <!-- In index.html, inside the settings screen -->
+
         <div class="settings-section">
             <h3>Data Management</h3>
-            <button id="export-data-btn" class="btn-secondary">Export Data</button>
-            <button id="clear-data-btn" class="btn-danger">Clear All Data</button>
+            <p style="margin-bottom: 16px; color: var(--color-text-secondary);">Create a local backup of your data or restore from a backup file. Importing will overwrite all current data.</p>
+            <div style="display: flex; gap: 10px;">
+                <!-- This button already exists, no changes needed here -->
+                <button id="export-data-btn" class="btn-secondary">Export Data</button>
+
+                <!-- Add this new button for importing -->
+                <button id="import-data-btn" class="btn-secondary">Import Data</button>
+                
+                <!-- Add this hidden file input that the button will trigger -->
+                <input type="file" id="import-file-input" accept=".json" style="display: none;">
+
+                <!-- This button already exists, no changes needed here -->
+                <button id="clear-data-btn" class="btn-danger">Clear All Data</button>
+            </div>
         </div>
     </div>
 </div>
