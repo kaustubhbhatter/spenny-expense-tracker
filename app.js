@@ -225,19 +225,24 @@ function saveDataToLocalStorage() {
 
 function loadDataFromLocalStorage(shouldRender = true) {
     console.log('Loading data from localStorage (Guest mode)...');
-    const transactions = JSON.parse(localStorage.getItem('transactions'));
     
-    // If no data, it's a new guest. Initialize with sample data.
-    if (!transactions) {
+    // Check for any existing data to decide if we should initialize
+    const storedTransactions = localStorage.getItem('transactions');
+
+    // If there are no stored transactions, it's a new guest. Initialize with sample data.
+    if (storedTransactions === null) {
+        console.log("No local data found, initializing sample data.");
         initializeSampleData();
-        if(!currentUser) saveDataToLocalStorage(); // Save samples for guest
+        if(!currentUser) saveDataToLocalStorage(); // Save samples for the new guest
     } else {
-        appData.transactions = transactions;
-        appData.accounts = JSON.parse(localStorage.getItem('accounts')) || [];
+        console.log("Loading data from local storage.");
+        // Safely load each piece of data with a fallback
+        appData.transactions = JSON.parse(storedTransactions) || [];
+        appData.accounts = JSON.parse(localStorage.getItem('accounts')) || defaultAppData.accounts;
         appData.expenseCategories = JSON.parse(localStorage.getItem('expenseCategories')) || defaultAppData.expenseCategories;
         appData.incomeCategories = JSON.parse(localStorage.getItem('incomeCategories')) || defaultAppData.incomeCategories;
         appData.accountTypes = JSON.parse(localStorage.getItem('accountTypes')) || defaultAppData.accountTypes;
-        appData.settings = JSON.parse(localStorage.getItem('settings')) || { currency: '₹' };
+        appData.settings = JSON.parse(localStorage.getItem('settings')) || defaultAppData.settings;
     }
 
     if (shouldRender) {
@@ -486,6 +491,60 @@ document.querySelectorAll('.type-btn').forEach(btn => {
     // Export and Clear data buttons
     document.getElementById('export-data-btn').addEventListener('click', exportData);
     document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
+
+     // --- NEW: Import Data Logic ---
+    const importBtn = document.getElementById('import-data-btn');
+    const importFileInput = document.getElementById('import-file-input');
+
+    // When the visible "Import" button is clicked, trigger the hidden file input
+    importBtn.addEventListener('click', () => {
+        importFileInput.click(); 
+    });
+
+    // When a file is selected in the file input
+    importFileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+            return; // User cancelled the file selection
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = async (e) => {
+            try {
+                const importedData = JSON.parse(e.target.result);
+
+                // Basic validation to check if it's a valid backup file
+                if (!importedData.transactions || !importedData.accounts || !importedData.expenseCategories) {
+                    alert('Import Failed: The selected file is not a valid Spenny backup file.');
+                    return;
+                }
+
+                // CRITICAL: Confirm with the user before overwriting everything
+                if (confirm('Are you sure you want to import this data? This will overwrite all of your current data.')) {
+                    // Replace the current appData with the imported data
+                    // Use defaults as a base to ensure no properties are missing
+                    appData = {
+                        ...JSON.parse(JSON.stringify(defaultAppData)),
+                        ...importedData
+                    };
+
+                    await saveData(); // Save the new state to Firestore or Local Storage
+                    render();         // Re-render the entire app with the new data
+                    
+                    alert('Data imported successfully!');
+                }
+            } catch (error) {
+                console.error('Import error:', error);
+                alert('Import Failed: The file could not be read or is corrupted.');
+            } finally {
+                // Reset the input value so the user can import the same file again if needed
+                importFileInput.value = '';
+            }
+        };
+
+        reader.readAsText(file);
+    });
 }
 
 // --- DATA MODIFICATION FUNCTIONS (NOW ASYNC) ---
@@ -1336,12 +1395,38 @@ function getTransactionsByPeriod(period) {
 }
 function getRandomColor() { return ['#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50'][Math.floor(Math.random() * 10)]; }
 function getRandomIcon() { return ['💰', '🏦', '💳', '💵', '📊', '📈', '🎯', '🎁', '🍔', '🚗'][Math.floor(Math.random() * 10)]; }
+// In app.js, replace the entire exportData function
+
 function exportData() {
-    const dataStr = JSON.stringify(appData, null, 2);
+    // 1. Consolidate all user-specific data into a single object for export.
+    const dataToExport = {
+        transactions: appData.transactions || [],
+        accounts: appData.accounts || [],
+        expenseCategories: appData.expenseCategories || [],
+        incomeCategories: appData.incomeCategories || [],
+        accountTypes: appData.accountTypes || [],
+        settings: appData.settings || { currency: '₹' },
+        // Add a version number for future compatibility
+        exportFormatVersion: '1.0' 
+    };
+
+    // 2. Convert the object to a nicely formatted JSON string.
+    const dataStr = JSON.stringify(dataToExport, null, 2);
+    
+    // 3. Create a downloadable file from the JSON string.
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
+    
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'expense-tracker-data.json';
+    const timestamp = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    link.download = `spenny-backup-${timestamp}.json`;
+    
+    // 4. Trigger the download and clean up.
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    console.log("Data exported successfully.");
 }
